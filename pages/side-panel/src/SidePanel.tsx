@@ -17,6 +17,7 @@ const SidePanel = () => {
   const [note, setNote] = useState('');
   const [noteTitle, setNoteTitle] = useState('');
   const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [obsidianConfig, setObsidianConfig] = useState({
     baseUrl: 'http://localhost:27123',
     apiKey: '',
@@ -57,15 +58,16 @@ const SidePanel = () => {
 
     try {
       const api = new ObsidianAPI(obsidianConfig);
-      const response = await api.createNote(noteTitle, note);
 
-      console.log('Response:', response);
-
-      if (response.ok) {
-        setNotification({ message: '노트가 저장되었습니다.', type: 'success' });
-      } else {
-        throw new Error('노트 저장에 실패했습니다.');
+      // Check if file exists
+      const exists = await api.checkFileExists(noteTitle);
+      if (exists) {
+        setShowConfirmDialog(true);
+        return;
       }
+
+      // If file doesn't exist, create new note
+      await saveNewNote(api);
     } catch (error) {
       console.error('Error saving note:', error);
       setNotification({
@@ -73,6 +75,47 @@ const SidePanel = () => {
           '노트 저장에 실패했습니다. 옵시디언이 실행 중이고, Local REST API 플러그인이 활성화되어 있는지 확인해주세요.',
         type: 'error',
       });
+    }
+  };
+
+  const saveNewNote = async (api: ObsidianAPI) => {
+    const response = await api.createNote(noteTitle, note);
+    console.log('Response:', response);
+
+    if (response.ok) {
+      setNotification({ message: '노트가 저장되었습니다.', type: 'success' });
+    } else {
+      throw new Error('노트 저장에 실패했습니다.');
+    }
+  };
+
+  const appendToExistingNote = async () => {
+    try {
+      const api = new ObsidianAPI(obsidianConfig);
+      const response = await api.appendToNote(noteTitle, note);
+
+      if (response.ok) {
+        setNotification({ message: '노트가 추가되었습니다.', type: 'success' });
+      } else {
+        throw new Error('노트 추가에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error appending to note:', error);
+      setNotification({
+        message: '노트 추가에 실패했습니다.',
+        type: 'error',
+      });
+    } finally {
+      setShowConfirmDialog(false);
+    }
+  };
+
+  const overwriteExistingNote = async () => {
+    try {
+      const api = new ObsidianAPI(obsidianConfig);
+      await saveNewNote(api);
+    } finally {
+      setShowConfirmDialog(false);
     }
   };
 
@@ -135,6 +178,34 @@ const SidePanel = () => {
           </svg>
         </button>
       </div>
+
+      {/* 확인 다이얼로그 */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div
+            className={`bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm w-full ${isLight ? 'text-gray-900' : 'text-gray-100'}`}>
+            <h3 className="text-lg font-medium mb-4">같은 이름의 노트가 이미 존재합니다</h3>
+            <p className="mb-4">어떻게 처리하시겠습니까?</p>
+            <div className="flex justify-end space-x-2">
+              <button
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                onClick={() => setShowConfirmDialog(false)}>
+                취소
+              </button>
+              <button
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                onClick={appendToExistingNote}>
+                내용 추가
+              </button>
+              <button
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                onClick={overwriteExistingNote}>
+                덮어쓰기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 노트 제목 입력 */}
       <div className="p-4 border-b">
