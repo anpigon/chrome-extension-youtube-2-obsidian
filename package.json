@@ -8,6 +8,11 @@
     "url": "https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite.git"
   },
   "type": "module",
+  "workspaces": [
+    "packages/*",
+    "pages/*",
+    "chrome-extension"
+  ],
   "scripts": {
     "clean:bundle": "rimraf dist && rimraf dist-zip && turbo clean:bundle",
     "clean:node_modules": "turbo daemon stop && pnpx rimraf node_modules && pnpx turbo clean:node_modules",
