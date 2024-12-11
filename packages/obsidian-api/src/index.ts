@@ -1,6 +1,7 @@
 interface ObsidianConfig {
   baseUrl: string;
   vaultName: string;
+  apiKey?: string;
 }
 
 export class ObsidianAPI {
@@ -12,12 +13,17 @@ export class ObsidianAPI {
 
   async createNote(title: string, content: string): Promise<Response> {
     const url = `${this.config.baseUrl}/vault/${this.config.vaultName}/create`;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (this.config.apiKey) {
+      headers['Authorization'] = `Bearer ${this.config.apiKey}`;
+    }
 
     return fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         path: `YouTube Notes/${title}.md`,
         content,
