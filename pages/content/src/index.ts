@@ -17,6 +17,7 @@ function getVideoInfo(): VideoInfo {
   const url = new URL(window.location.href);
   const videoId = url.searchParams.get('v') || '';
   const timestamp = video ? formatTime(video.currentTime) : '00:00';
+  console.log('getVideoInfo', { title, videoId, timestamp });
 
   return {
     title,

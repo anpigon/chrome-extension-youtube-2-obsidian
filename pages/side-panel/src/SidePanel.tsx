@@ -15,6 +15,8 @@ const SidePanel = () => {
   const isLight = theme === 'light';
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [note, setNote] = useState('');
+  const [noteTitle, setNoteTitle] = useState('');
+  const [notification, setNotification] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [obsidianConfig, setObsidianConfig] = useState({
     baseUrl: 'http://localhost:27123',
     apiKey: '',
@@ -38,6 +40,7 @@ const SidePanel = () => {
       if (message.target === 'side-panel') {
         if (message.type === 'VIDEO_INFO_UPDATED') {
           setVideoInfo(message.data);
+          setNoteTitle(message.data.title); // Set initial title from video title
         } else if (message.type === 'VIDEO_TIMESTAMP_UPDATED') {
           setVideoInfo(prev => (prev ? { ...prev, timestamp: message.data.timestamp } : null));
         }
@@ -46,27 +49,30 @@ const SidePanel = () => {
   }, []);
 
   const handleSaveNote = async () => {
-    if (!videoInfo || !note || !obsidianConfig.vaultName) {
-      alert('비디오 정보와 노트 내용, 옵시디언 설정이 필요합니다.');
+    console.log(videoInfo, noteTitle, note, obsidianConfig.vaultName);
+    if (!noteTitle || !note || !obsidianConfig.vaultName) {
+      setNotification({ message: '노트 내용, 옵시디언 설정이 필요합니다.', type: 'error' });
       return;
     }
 
     try {
       const api = new ObsidianAPI(obsidianConfig);
-      const content = ObsidianAPI.createNoteContent(videoInfo, note);
-      const response = await api.createNote(videoInfo.title, content);
+      const response = await api.createNote(noteTitle, note);
+
+      console.log('Response:', response);
 
       if (response.ok) {
-        alert('노트가 저장되었습니다.');
-        setNote('');
+        setNotification({ message: '노트가 저장되었습니다.', type: 'success' });
       } else {
         throw new Error('노트 저장에 실패했습니다.');
       }
     } catch (error) {
       console.error('Error saving note:', error);
-      alert(
-        '노트 저장에 실패했습니다. 옵시디언이 실행 중이고, Local REST API 플러그인이 활성화되어 있는지 확인해주세요.',
-      );
+      setNotification({
+        message:
+          '노트 저장에 실패했습니다. 옵시디언이 실행 중이고, Local REST API 플러그인이 활성화되어 있는지 확인해주세요.',
+        type: 'error',
+      });
     }
   };
 
@@ -78,13 +84,36 @@ const SidePanel = () => {
         obsidianVaultName: obsidianConfig.vaultName,
       },
       () => {
-        alert('설정이 저장되었습니다.');
+        setNotification({ message: '설정이 저장되었습니다.', type: 'success' });
       },
     );
   };
 
+  // 3초 후에 알림 메시지 자동으로 사라지게 하기
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   return (
     <div className={`h-screen flex flex-col ${isLight ? 'bg-slate-50' : 'bg-gray-800'}`}>
+      {/* 알림 메시지 */}
+      {notification && (
+        <div
+          className={`p-4 ${
+            notification.type === 'error'
+              ? 'bg-red-100 border-red-400 text-red-700'
+              : 'bg-green-100 border-green-400 text-green-700'
+          } border-l-4`}
+          role="alert">
+          <p>{notification.message}</p>
+        </div>
+      )}
+
       {/* 비디오 정보 */}
       <div className="p-4 border-b flex justify-between items-center">
         <div>
@@ -120,53 +149,15 @@ const SidePanel = () => {
         </button>
       </div>
 
-      {/* 옵시디언 설정 */}
+      {/* 노트 제목 입력 */}
       <div className="p-4 border-b">
-        <div className={`${isLight ? 'text-gray-900' : 'text-gray-100'}`}>
-          <label className="block text-sm font-medium">옵시디언 API URL</label>
-          <div className="mt-1 flex">
-            <input
-              type="text"
-              className={`flex-1 p-2 rounded-l border ${
-                isLight ? 'bg-white text-gray-900' : 'bg-gray-700 text-gray-100'
-              }`}
-              value={obsidianConfig.baseUrl}
-              onChange={e => setObsidianConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
-              placeholder="API URL을 입력하세요"
-            />
-          </div>
-          <label className="block text-sm font-medium mt-2">옵시디언 API Key</label>
-          <div className="mt-1 flex">
-            <input
-              type="text"
-              className={`flex-1 p-2 rounded-l border ${
-                isLight ? 'bg-white text-gray-900' : 'bg-gray-700 text-gray-100'
-              }`}
-              value={obsidianConfig.apiKey}
-              onChange={e => setObsidianConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-              placeholder="API Key를 입력하세요"
-            />
-          </div>
-          <label className="block text-sm font-medium mt-2">옵시디언 Vault 이름</label>
-          <div className="mt-1 flex">
-            <input
-              type="text"
-              className={`flex-1 p-2 rounded-l border ${
-                isLight ? 'bg-white text-gray-900' : 'bg-gray-700 text-gray-100'
-              }`}
-              value={obsidianConfig.vaultName}
-              onChange={e => setObsidianConfig(prev => ({ ...prev, vaultName: e.target.value }))}
-              placeholder="Vault 이름을 입력하세요"
-            />
-            <button
-              className={`px-4 rounded-r ${
-                isLight ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-gray-600 text-gray-100 hover:bg-gray-500'
-              }`}
-              onClick={handleConfigSave}>
-              저장
-            </button>
-          </div>
-        </div>
+        <input
+          type="text"
+          className={`w-full p-2 rounded border ${isLight ? 'bg-white text-gray-900' : 'bg-gray-700 text-gray-100'}`}
+          value={noteTitle}
+          onChange={e => setNoteTitle(e.target.value)}
+          placeholder="노트 제목을 입력하세요..."
+        />
       </div>
 
       {/* 노트 에디터 */}
