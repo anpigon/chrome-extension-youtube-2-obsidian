@@ -37,13 +37,13 @@ const SidePanel = () => {
 
     // 비디오 정보 업데이트 메시지 수신
     chrome.runtime.onMessage.addListener(message => {
-      if (message.target === 'side-panel') {
-        if (message.type === 'VIDEO_INFO_UPDATED') {
-          setVideoInfo(message.data);
-          setNoteTitle(message.data.title); // Set initial title from video title
-        } else if (message.type === 'VIDEO_TIMESTAMP_UPDATED') {
-          setVideoInfo(prev => (prev ? { ...prev, timestamp: message.data.timestamp } : null));
-        }
+      console.log('message', message);
+
+      if (message.type === 'VIDEO_INFO_UPDATED') {
+        setVideoInfo(message.data);
+        setNoteTitle(message.data.title); // Set initial title from video title
+      } else if (message.type === 'VIDEO_TIMESTAMP_UPDATED') {
+        setVideoInfo(prev => (prev ? { ...prev, timestamp: message.data.timestamp } : null));
       }
     });
   }, []);
@@ -74,19 +74,6 @@ const SidePanel = () => {
         type: 'error',
       });
     }
-  };
-
-  const handleConfigSave = () => {
-    chrome.storage.sync.set(
-      {
-        obsidianApiUrl: obsidianConfig.baseUrl,
-        obsidianApiKey: obsidianConfig.apiKey,
-        obsidianVaultName: obsidianConfig.vaultName,
-      },
-      () => {
-        setNotification({ message: '설정이 저장되었습니다.', type: 'success' });
-      },
-    );
   };
 
   // 3초 후에 알림 메시지 자동으로 사라지게 하기
